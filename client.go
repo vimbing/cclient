@@ -3,9 +3,9 @@ package cclient
 import (
 	"time"
 
-	"github.com/Carcraftz/fhttp/cookiejar"
+	"github.com/vimbing/fhttp/cookiejar"
 
-	http "github.com/Carcraftz/fhttp"
+	http "github.com/vimbing/fhttp"
 
 	"golang.org/x/net/proxy"
 
