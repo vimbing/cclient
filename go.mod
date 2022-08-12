@@ -1,4 +1,4 @@
-module cclient
+module github.com/vimbing/cclient
 
 go 1.18
 
