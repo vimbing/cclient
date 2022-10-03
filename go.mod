@@ -3,8 +3,8 @@ module github.com/vimbing/cclient
 go 1.18
 
 require (
-	github.com/Carcraftz/utls v0.0.0-20220413235215-6b7c52fd78b6
-	github.com/vimbing/fhttp v0.0.0-20220812164641-bbf0093209c2
+	github.com/vimbing/fhttp v0.0.0-20221003223111-7f5c5fa7aebd
+	github.com/vimbing/utls v0.0.0-20221003221406-2f6094b8625d
 	golang.org/x/net v0.0.0-20220812174116-3211cb980234
 )
 
