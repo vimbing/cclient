@@ -224,7 +224,7 @@ func (c *connectDialer) DialContext(ctx context.Context, network, address string
 			}
 		} else {
 			tlsConf := tls.Config{
-				NextProtos: []string{"h2", "http/1.1"},
+				NextProtos: []string{"h2", "http/1.1", "http/1.0"},
 				ServerName: c.ProxyUrl.Hostname(),
 			}
 			tlsConn, err := tls.Dial(network, c.ProxyUrl.Host, &tlsConf)
