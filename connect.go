@@ -162,6 +162,30 @@ func (c *connectDialer) DialContext(ctx context.Context, network, address string
 		return rawConn, nil
 	}
 
+	connectHttp10 := func(rawConn net.Conn) (net.Conn, error) {
+		req.Proto = "HTTP/1.0"
+		req.ProtoMajor = 1
+		req.ProtoMinor = 0
+
+		err := req.Write(rawConn)
+		if err != nil {
+			_ = rawConn.Close()
+			return nil, err
+		}
+
+		resp, err := http.ReadResponse(bufio.NewReader(rawConn), req)
+		if err != nil {
+			_ = rawConn.Close()
+			return nil, err
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			_ = rawConn.Close()
+			return nil, errors.New("Proxy responded with non 200 code: " + resp.Status)
+		}
+		return rawConn, nil
+	}
+
 	if c.EnableH2ConnReuse {
 		c.cacheH2Mu.Lock()
 		unlocked := false
@@ -223,6 +247,8 @@ func (c *connectDialer) DialContext(ctx context.Context, network, address string
 		fallthrough
 	case "http/1.1":
 		return connectHttp1(rawConn)
+	case "http/1.0":
+		return connectHttp10(rawConn)
 	case "h2":
 		t := http2.Transport{}
 		h2clientConn, err := t.NewClientConn(rawConn)
