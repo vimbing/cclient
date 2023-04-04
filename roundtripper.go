@@ -95,6 +95,13 @@ func (rt *roundTripper) dialTLS(ctx context.Context, network, addr string) (net.
 
 	if err = conn.Handshake(); err != nil {
 		_ = conn.Close()
+
+		if rt.sslPinningOptions.Required {
+			if strings.Contains(err.Error(), "x509: certificate signed by unknown authority") {
+				rt.sslPinningOptions.Notifier()
+			}
+		}
+
 		return nil, err
 	}
 
