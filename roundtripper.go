@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/tam7t/hpkp"
 	http "github.com/vimbing/fhttp"
 
 	"github.com/vimbing/fhttp/http2"
@@ -25,6 +26,8 @@ type roundTripper struct {
 
 	cachedConnections map[string]net.Conn
 	cachedTransports  map[string]http.RoundTripper
+
+	sslPinningOptions SSLPinningOptions
 
 	dialer proxy.ContextDialer
 }
@@ -95,6 +98,27 @@ func (rt *roundTripper) dialTLS(ctx context.Context, network, addr string) (net.
 		return nil, err
 	}
 
+	if rt.sslPinningOptions.Required {
+		if h := rt.sslPinningOptions.Storage.Lookup(host); h != nil {
+			validPin := false
+
+			for _, peercert := range conn.ConnectionState().PeerCertificates {
+				peerPin := hpkp.Fingerprint(peercert)
+
+				if h.Matches(peerPin) {
+					validPin = true
+				}
+			}
+
+			if !validPin {
+				go rt.sslPinningOptions.Notifier()
+				return conn, SSLPinningSecurityError{}
+			}
+		} else {
+			return conn, errors.New("ssl pinning error, unknown host")
+		}
+	}
+
 	if rt.cachedTransports[addr] != nil {
 		return conn, nil
 	}
@@ -137,13 +161,13 @@ func (rt *roundTripper) getDialTLSAddr(req *http.Request) string {
 	return net.JoinHostPort(req.URL.Host, "443") // we can assume port is 443 at this point
 }
 
-func newRoundTripper(clientHello utls.ClientHelloID, dialer ...proxy.ContextDialer) http.RoundTripper {
+func newRoundTripper(clientHello utls.ClientHelloID, sslPinningOptions SSLPinningOptions, dialer ...proxy.ContextDialer) http.RoundTripper {
 	if len(dialer) > 0 {
 		return &roundTripper{
 			dialer: dialer[0],
 
-			clientHelloId: clientHello,
-
+			clientHelloId:     clientHello,
+			sslPinningOptions: sslPinningOptions,
 			cachedTransports:  make(map[string]http.RoundTripper),
 			cachedConnections: make(map[string]net.Conn),
 		}
@@ -151,8 +175,8 @@ func newRoundTripper(clientHello utls.ClientHelloID, dialer ...proxy.ContextDial
 		return &roundTripper{
 			dialer: proxy.Direct,
 
-			clientHelloId: clientHello,
-
+			clientHelloId:     clientHello,
+			sslPinningOptions: sslPinningOptions,
 			cachedTransports:  make(map[string]http.RoundTripper),
 			cachedConnections: make(map[string]net.Conn),
 		}
