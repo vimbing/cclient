@@ -57,7 +57,7 @@ func (rt *roundTripper) getTransport(req *http.Request, addr string) error {
 	case errProtocolNegotiated:
 	case nil:
 		// Should never happen.
-		panic("dialTLS returned no error when determining cachedTransports")
+		return errors.New("dialTLS returned no error when determining cachedTransports")
 	default:
 		return err
 	}
@@ -98,7 +98,7 @@ func (rt *roundTripper) dialTLS(ctx context.Context, network, addr string) (net.
 
 		if rt.sslPinningOptions.Required {
 			if strings.Contains(err.Error(), "x509: certificate signed by unknown authority") {
-				rt.sslPinningOptions.Notifier()
+				go rt.sslPinningOptions.Notifier()
 			}
 		}
 
