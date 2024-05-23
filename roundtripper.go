@@ -37,7 +37,7 @@ type roundTripper struct {
 func (rt *roundTripper) getCachedTransport(key string) (cachedTransport http.RoundTripper, ok bool) {
 	v, ok := rt.cachedTransports.Load(key)
 
-	if !ok {
+	if v == nil {
 		return nil, ok
 	}
 
@@ -49,7 +49,7 @@ func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	transport, ok := rt.getCachedTransport(addr)
 
-	if !ok {
+	if !ok || transport == nil {
 		if err := rt.getTransport(req, addr); err != nil {
 			return nil, err
 		}
