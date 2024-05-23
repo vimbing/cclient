@@ -25,27 +25,43 @@ type roundTripper struct {
 	clientHelloId utls.ClientHelloID
 
 	cachedConnections map[string]net.Conn
-	cachedTransports  map[string]http.RoundTripper
+
+	// cachedTransports  map[string]http.RoundTripper
+	cachedTransports sync.Map
 
 	sslPinningOptions SSLPinningOptions
 
 	dialer proxy.ContextDialer
 }
 
+func (rt *roundTripper) getCachedTransport(key string) (cachedTransport http.RoundTripper, ok bool) {
+	v, ok := rt.cachedTransports.Load(key)
+
+	if !ok {
+		return nil, ok
+	}
+
+	return v.(http.RoundTripper), ok
+}
+
 func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	addr := rt.getDialTLSAddr(req)
-	if _, ok := rt.cachedTransports[addr]; !ok {
+
+	transport, ok := rt.getCachedTransport(addr)
+
+	if !ok {
 		if err := rt.getTransport(req, addr); err != nil {
 			return nil, err
 		}
 	}
-	return rt.cachedTransports[addr].RoundTrip(req)
+
+	return transport.RoundTrip(req)
 }
 
 func (rt *roundTripper) getTransport(req *http.Request, addr string) error {
 	switch strings.ToLower(req.URL.Scheme) {
 	case "http":
-		rt.cachedTransports[addr] = &http.Transport{DialContext: rt.dialer.DialContext}
+		rt.cachedTransports.Store(addr, &http.Transport{DialContext: rt.dialer.DialContext})
 		return nil
 	case "https":
 	default:
@@ -126,7 +142,9 @@ func (rt *roundTripper) dialTLS(ctx context.Context, network, addr string) (net.
 		}
 	}
 
-	if rt.cachedTransports[addr] != nil {
+	cachedTransport, _ := rt.getCachedTransport(addr)
+
+	if cachedTransport != nil {
 		return conn, nil
 	}
 
@@ -143,10 +161,10 @@ func (rt *roundTripper) dialTLS(ctx context.Context, network, addr string) (net.
 		}
 		t2.InitialWindowSize = 6291456
 		t2.PushHandler = &http2.DefaultPushHandler{}
-		rt.cachedTransports[addr] = &t2
+		rt.cachedTransports.Store(addr, &t2)
 	default:
 		// Assume the remote peer is speaking HTTP 1.x + TLS.
-		rt.cachedTransports[addr] = &http.Transport{DialTLSContext: rt.dialTLS}
+		rt.cachedTransports.Store(addr, &http.Transport{DialTLSContext: rt.dialTLS})
 	}
 
 	// Stash the connection just established for use servicing the
@@ -175,7 +193,7 @@ func newRoundTripper(clientHello utls.ClientHelloID, sslPinningOptions SSLPinnin
 
 			clientHelloId:     clientHello,
 			sslPinningOptions: sslPinningOptions,
-			cachedTransports:  make(map[string]http.RoundTripper),
+			cachedTransports:  sync.Map{},
 			cachedConnections: make(map[string]net.Conn),
 		}
 	} else {
@@ -184,7 +202,7 @@ func newRoundTripper(clientHello utls.ClientHelloID, sslPinningOptions SSLPinnin
 
 			clientHelloId:     clientHello,
 			sslPinningOptions: sslPinningOptions,
-			cachedTransports:  make(map[string]http.RoundTripper),
+			cachedTransports:  sync.Map{},
 			cachedConnections: make(map[string]net.Conn),
 		}
 	}
