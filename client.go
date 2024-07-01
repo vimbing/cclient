@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/net/proxy"
 
-	utls "github.com/vimbing/utls"
+	utls "github.com/vimbing/vutls"
 )
 
 func handleSslPinningOption(opts SSLPinningOptions) (SSLPinningOptions, error) {

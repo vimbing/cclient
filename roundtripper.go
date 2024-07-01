@@ -14,7 +14,7 @@ import (
 	"github.com/vimbing/fhttp/http2"
 	"golang.org/x/net/proxy"
 
-	utls "github.com/vimbing/utls"
+	utls "github.com/vimbing/vutls"
 )
 
 var errProtocolNegotiated = errors.New("protocol negotiated")
